@@ -1,6 +1,6 @@
 # dakikg-ui
 
-Streamlit UI for querying the [DAKI-KG](https://github.com/romy-vos/daki-kg/tree/main/sparql) knowledge graph.
+Streamlit UI for querying the [DAKI-KG](https://github.com/romy-vos/daki-kg) knowledge graph.
 
 ## Setup
 
