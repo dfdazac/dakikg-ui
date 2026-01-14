@@ -64,7 +64,9 @@ class GraphDBConnector:
             entity_query: Entity query to search for.
         """
         query = self._get_query(self.search_entities.__name__)
-        query = query.replace("q0", entity_query)
+        # Escape user input to keep the SPARQL string literal valid while typing in the UI.
+        safe_entity_query = entity_query.replace("\\", "\\\\").replace('"', '\\"')
+        query = query.replace("q0", safe_entity_query)
         query_results = self.execute_query(query)["results"]["bindings"]
         output = dict()
         for result in query_results:
