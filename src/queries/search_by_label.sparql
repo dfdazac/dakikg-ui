@@ -1,0 +1,10 @@
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+SELECT ?e (SUBSTR(STR(?label), 1, 150) AS ?shortLabel) WHERE {
+    ?e <http://www.ontotext.com/plugins/autocomplete#query> "q0" .
+    ?e qPred ?label .
+    FILTER(lang(?label) = "qLang")
+} LIMIT 10
+
+

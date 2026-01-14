@@ -20,6 +20,28 @@ class GraphDBConnector:
         self.wrapper.setReturnFormat(JSON)
         self.queries_dict = dict()
         self.session_ids = set()
+
+    @staticmethod
+    def _escape_sparql_string_literal(value: str) -> str:
+        # Keep the SPARQL string literal valid for user-provided input.
+        return value.replace("\\", "\\\\").replace('"', '\\"')
+
+    @staticmethod
+    def _validate_lang(lang: str) -> str:
+        lang = (lang or "").strip().lower()
+        if lang not in {"en", "nl"}:
+            raise ValueError(f"Unsupported language: {lang!r}. Expected one of: en, nl")
+        return lang
+
+    @staticmethod
+    def _validate_predicate(predicate: str) -> str:
+        predicate = (predicate or "").strip()
+        allowed = {"rdfs:label", "skos:prefLabel"}
+        if predicate not in allowed:
+            raise ValueError(
+                f"Unsupported predicate: {predicate!r}. Expected one of: {', '.join(sorted(allowed))}"
+            )
+        return predicate
         
     def _get_query(self, query_name: str):
         if query_name not in self.queries_dict:
@@ -57,29 +79,32 @@ class GraphDBConnector:
                                           f"{query}\n"
                                           f"Original error: {sparql_exception}")
 
-    def search_entities(self, entity_query: str):
-        """Find entity KG identifiers that best match a given search query.
+    def _search_by_label(self, query_str: str, *, predicate: str, lang: str) -> dict[str, str] | str:
+        query = self._get_query("search_by_label")
+        query = query.replace("q0", self._escape_sparql_string_literal(query_str))
+        query = query.replace("qLang", self._validate_lang(lang))
+        query = query.replace("qPred", self._validate_predicate(predicate))
 
-        Args:
-            entity_query: Entity query to search for.
-        """
-        query = self._get_query(self.search_entities.__name__)
-        # Escape user input to keep the SPARQL string literal valid while typing in the UI.
-        safe_entity_query = entity_query.replace("\\", "\\\\").replace('"', '\\"')
-        query = query.replace("q0", safe_entity_query)
         query_results = self.execute_query(query)["results"]["bindings"]
-        output = dict()
+        output: dict[str, str] = {}
         for result in query_results:
             uri = result["e"]["value"]
-            comment = result["shortComment"]["value"]
+            label = result["shortLabel"]["value"]
             entity_id = uri.split("/")[-1]
             self.session_ids.add(entity_id)
-            output[entity_id] = comment
+            output[entity_id] = label
 
         if len(output) == 0:
             return "No matches found."
-        else:
-            return output
+        return output
+
+    def search_entities(self, entity_query: str, lang: str = "en"):
+        """Search entities (drugs) by label."""
+        return self._search_by_label(entity_query, predicate="rdfs:label", lang=lang)
+
+    def search_ades(self, ade_query: str, lang: str = "en"):
+        """Search adverse events by preferred label."""
+        return self._search_by_label(ade_query, predicate="skos:prefLabel", lang=lang)
 
 
 if __name__ == "__main__":
